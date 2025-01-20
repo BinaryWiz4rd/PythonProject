@@ -18,3 +18,5 @@ python -m pip install pygame
 python -m pip install kivy
 
 w img.png jest ze mamy grid w gridze i jak to wyglada tgechnicznie
+
+pip install kivymd ==> do upiekszenia displayu
