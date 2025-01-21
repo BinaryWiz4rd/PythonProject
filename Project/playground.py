@@ -95,7 +95,7 @@ class QuestionsWindow(MDScreen):
             self.questions = [
                 "What is your gender?",
                 "What is your age?",
-                "What is your height (cm)?",
+                "What is your height (in meters)?",
                 "What is your weight (kg)?",
                 "What is your glucose level?"
             ]
