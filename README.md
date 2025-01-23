@@ -7,7 +7,7 @@ The Health Questionnaire App is a KivyMD-based application designed to collect u
 ## Features
 
 - **User-Friendly Interface**: The app features a clean and intuitive interface using KivyMD components.
-- **Dynamic Questioning**: Users can select a category of questions (General, Heart, Diabetes) and answer relevant questions.
+- **Dynamic Questioning**: Users can select a category of questions (General, Heart, Family) and answer relevant questions.
 - **Medical Advice**: After submitting answers, users receive tailored medical advice based on their responses.
 - **Return Functionality**: Users can easily return to the main menu from the question screen.
 
