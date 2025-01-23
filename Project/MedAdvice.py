@@ -9,9 +9,6 @@ from kivy.metrics import dp
 from kivymd.uix.dialog import MDDialog
 
 
-
-#trza wykminic czemu po odpaleniu apki nazywa sie ona "My"
-
 class MainWindow(MDScreen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -111,7 +108,6 @@ class QuestionsWindow(MDScreen):
         self.layout.clear_widgets()
         self.layout.add_widget(self.title_label)
 
-#tu spoko byloby przeorganizowac te pytania, bo ostatnie w sumie malo diabetyczne jest a raczej genetyczne
         categories = {
             "General": [
                 "What is your gender?",
@@ -274,9 +270,9 @@ class WindowManager(MDScreenManager):
         self.add_widget(QuestionsWindow(name="questions"))
 
 
-class MyApp(MDApp):
+class HealthAdviceApp(MDApp):
     def build(self):
         return WindowManager()
 
 if __name__ == "__main__":
-    MyApp().run()
+    HealthAdviceApp().run()
