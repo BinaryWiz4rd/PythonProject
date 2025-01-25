@@ -1,3 +1,4 @@
+import pandas as pd
 from kivymd.app import MDApp
 from kivymd.uix.button import MDRectangleFlatButton, MDIconButton
 from kivymd.uix.screen import MDScreen
@@ -7,6 +8,10 @@ from kivymd.uix.textfield import MDTextField
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivy.metrics import dp
 from kivymd.uix.dialog import MDDialog
+from matplotlib import pyplot as plt
+import os
+import seaborn as sns
+from kivy.uix.image import Image
 
 
 class MainWindow(MDScreen):
@@ -247,16 +252,195 @@ class QuestionsWindow(MDScreen):
 
         return advice
 
+    def generate_graph(self, answers, category):
+        fig, ax = plt.subplots(figsize=(4, 3))
+        # Load data
+        data = pd.read_csv("Diabetes_Final_Data_V2.csv")
+
+        # Convert to DataFrame
+        df = pd.DataFrame(data)
+
+        if category == "General":
+            inputAge = inputAge = int(answers[1].text)  # Use .text to get the input string
+            inputGender = answers[0].text.strip().capitalize()
+            inputWeight = float(answers[3].text)
+            inputHeight = float(answers[2].text)
+            inputDiabetic = answers[4].text.strip().capitalize()
+
+            # Calculate user's BMI
+            user_bmi = inputWeight / (inputHeight ** 2)
+
+            # BMI categories and thresholds
+            categories = ["Underweight", "Normal weight", "Overweight", "Obesity"]
+            category_ranges = [18.5, 24.9, 29.9, 40]  # Upper thresholds
+            colors = ["blue", "green", "orange", "red"]
+
+            # Divide the data into diabetic and non-diabetic groups
+            diabetic_group = data[data['diabetic'] == "Yes"]
+            non_diabetic_group = data[data['diabetic'] == "No"]
+
+            # Calculate average BMI for each category in both diabetic and non-diabetic groups
+            bmi_values_diabetic = []
+            bmi_values_non_diabetic = []
+
+            # For each category, calculate the mean BMI
+            for low, high in zip([0] + category_ranges[:-1], category_ranges):
+                # Diabetic group
+                diabetic_bmi = diabetic_group[(diabetic_group['bmi'] > low) & (diabetic_group['bmi'] <= high)]
+                bmi_values_diabetic.append(diabetic_bmi['bmi'].mean() if not diabetic_bmi.empty else 0)
+
+                # Non-diabetic group
+                non_diabetic_bmi = non_diabetic_group[
+                    (non_diabetic_group['bmi'] > low) & (non_diabetic_group['bmi'] <= high)]
+                bmi_values_non_diabetic.append(non_diabetic_bmi['bmi'].mean() if not non_diabetic_bmi.empty else 0)
+
+            # Plotting
+            fig, ax = plt.subplots()
+
+            # Plot both groups' average BMI bars
+            bars_diabetic = ax.bar(categories, bmi_values_diabetic, color=colors, alpha=0.6,
+                                   label="Diabetic Group Averages")
+            bars_non_diabetic = ax.bar(categories, bmi_values_non_diabetic, color=colors, alpha=0.3,
+                                       label="Non-Diabetic Group Averages")
+
+            # Highlight user's BMI
+            user_index = (
+                0 if user_bmi < 18.5 else
+                1 if 18.5 <= user_bmi < 24.9 else
+                2 if 25 <= user_bmi < 29.9 else
+                3
+            )
+            ax.bar(categories[user_index], bmi_values_diabetic[user_index], color="purple", label="Your BMI")
+
+            # Add annotations for BMI values
+            for i, bar in enumerate(bars_diabetic):
+                height = bar.get_height()
+                ax.text(bar.get_x() + bar.get_width() / 2, height + 0.5, f"{height:.1f}", ha="center", fontsize=10)
+
+            # Highlight user's BMI value
+            ax.axhline(y=user_bmi, color="purple", linestyle="--", linewidth=2, label=f"Your BMI: {user_bmi:.2f}")
+
+            # Graph labels and legend
+            ax.set_title(f"BMI Comparison - Diabetic vs Non-Diabetic (Your Age: {inputAge}, Gender: {inputGender})",
+                         fontsize=14)
+            ax.set_ylabel("Average BMI Value", fontsize=12)
+            ax.set_xlabel("BMI Categories", fontsize=12)
+            ax.legend(loc="upper left", fontsize=10)
+
+            plt.tight_layout()
+
+            # Save the figure as a PNG image
+            image_path = "bmi_graph.png"
+            fig.savefig(image_path)
+            plt.close(fig)  # Close the figure after saving
+
+            return image_path  # Return the image file path for later use
 
 
-#tu mam problem by wsadzic cokolwiek ponad Medical Advice, bo jest ustawione jako title, ale w tym miejscu bedzie graph
+        elif category == "Heart":
+            user_data = {
+                'pulse_rate': float(answers[0].text),
+                'systolic_bp': float(answers[1].text),
+                'diastolic_bp': float(answers[2].text),
+                'glucose': float(answers[3].text),
+                'bmi': float(answers[4].text),
+            }
+
+            # Create Box Plots
+            plt.figure(figsize=(16, 8))
+            parameters = ['pulse_rate', 'systolic_bp', 'diastolic_bp', 'glucose', 'bmi']
+
+            for i, param in enumerate(parameters):
+                plt.subplot(1, 5, i + 1)
+                sns.boxplot(df[param], color='lightblue', width=0.5)
+                plt.scatter(0, user_data[param], color='red', label='User Value', zorder=5)
+                plt.title(param.replace('_', ' ').title())
+                plt.xlabel('')
+                plt.ylabel('Value')
+                plt.legend()
+
+            plt.tight_layout()
+
+            # Save the figure as a PNG image
+            image_path = "heart_graph.png"
+            fig.savefig(image_path)
+            plt.close(fig)  # Close the figure after saving
+
+            return image_path
+
+        elif category == "Family":
+            # User Input
+            user_data = {
+                'diabetic': answers[0].text.strip().lower(),
+                'family_diabetes': 1 if answers[1].text.strip().lower() == 'yes' else 0,
+                'hypertensive': 1 if answers[2].text.strip().lower() == 'yes' else 0,
+                'family_hypertension': 1 if answers[3].text.strip().lower() == 'yes' else 0,
+                'cardiovascular_disease': 1 if answers[4].text.strip().lower() == 'yes' else 0
+            }
+
+            # Create Bar Plots for Categorical Data
+            plt.figure(figsize=(16, 6))
+            parameters = ['family_diabetes', 'hypertensive', 'family_hypertension', 'cardiovascular_disease']
+
+            for i, param in enumerate(parameters):
+                plt.subplot(1, 4, i + 1)
+                sns.countplot(x=df[param], palette='pastel')
+                # Highlight the user's input with a red frame
+                user_bar_position = user_data[param]
+                bar_height = df[param].value_counts().get(user_bar_position, 0)
+                plt.gca().patches[user_bar_position].set_edgecolor('red')
+                plt.gca().patches[user_bar_position].set_linewidth(3)
+                plt.title(param.replace('_', ' ').title())
+                plt.xlabel('')
+                plt.ylabel('Count')
+
+            plt.tight_layout()
+
+            # Save the figure as a PNG image
+            image_path = "family_graph.png"
+            fig.savefig(image_path)
+            plt.close(fig)
+
+            return image_path
+
+#apka ogolnie dzialal i wykresy sie zapisuja, jedyne co to sie nie pokazuja w oknie hihi
     def show_results(self, advice):
-        dialog = MDDialog(
-            title="Medical Advice",
-            text=advice,
-            buttons=[MDRectangleFlatButton(text="Close", on_release=lambda _: dialog.dismiss())],
+        # Generate the appropriate graph and get the saved image path
+        graph_image_path = self.generate_graph(self.answer_inputs, self.selected_category)
+
+        # Create the layout for the dialog
+        content = MDBoxLayout(orientation="vertical", spacing=10, padding=10)
+
+        # Add the image widget first (Graph)
+        graph_image = Image(source=graph_image_path)  # Use Kivy's Image widget here
+        content.add_widget(graph_image)
+
+        # Then, add the Medical Advice text
+        content.add_widget(MDLabel(text="Medical Advice", halign="center", font_style="H6"))
+        content.add_widget(MDLabel(text=advice, halign="left"))
+
+        # Create the dialog
+        self.dialog = MDDialog(
+            type="custom",
+            content_cls=content,
+            buttons=[
+                MDRectangleFlatButton(text="Close", on_release=lambda _: self.dialog.dismiss())
+            ],
         )
-        dialog.open()
+        self.dialog.open()
+
+    #tu mam problem by wsadzic cokolwiek ponad Medical Advice, bo jest ustawione jako title, ale w tym miejscu bedzie graph
+    # def show_results(self, advice):
+    #         dialog = MDDialog(
+    #             title="Medical Advice",
+    #             text=advice,
+    #             buttons=[MDRectangleFlatButton(text="Close", on_release=lambda _: dialog.dismiss())],
+    #         )
+    #         dialog.open()
+    #
+    # #ten button return mozna zrobic zeby byl na gorze po lewej stronie w formie strzalki
+    #     def return_to_main(self, _):
+    #         self.manager.current = "main"
 
 #ten button return mozna zrobic zeby byl na gorze po lewej stronie w formie strzalki
     def return_to_main(self, _):
