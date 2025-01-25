@@ -11,21 +11,66 @@ from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.textfield import MDTextField
 from matplotlib import pyplot as plt
 import seaborn as sns
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.utils import simpleSplit
 
 
 class GraphWidget(MDBoxLayout):
+    """
+    This widget is used to display a graph (in the form of an image) in the ResultsWindow.
+    It loads and shows the graph stored in 'bmi_graph.png' (or another image path).
+
+    Attributes:
+    image: Image widget to display the graph.
+    """
     def __init__(self, **kwargs):
+        """
+        Initializes the GraphWidget and adds the Image widget to the layout.
+
+        Arguments:
+        **kwargs: Arbitrary keyword arguments passed to the parent constructor.
+        """
         super().__init__(**kwargs)
+        # Initialize an Image widget to display the graph
         self.image = Image(source='bmi_graph.png')
         self.add_widget(self.image)
 
 
 class ResultsWindow(MDScreen):
+    """
+    Results window where medical advice and generated graphs (BMI, heart-related, etc.)
+    are displayed after user answers questions.
+
+    Attributes:
+        layout: The layout that holds the widgets in the Results window.
+        title_label: Label showing the title "Your Results".
+        advice_label: Label to display the health-related advice.
+        graph_widget: Widget to display the graph.
+        return_button: Button to return to the main menu.
+        save_pdf_button: Button to save the results as a PDF.
+        graph_path: Path to the generated graph.
+        current_advice: The health advice text to save in the PDF.
+
+    Methods:
+        display_results(): displays the generated data
+        return to main(): goes back to the main menu.
+        save_to_pdf(): saves the generated data as PDF.
+    """
+
     def __init__(self, **kwargs):
+        """
+        Initializes the ResultsWindow and sets up the layout and widgets.
+
+        Args:
+        **kwargs: Arbitrary keyword arguments passed to the parent constructor.
+        """
+
         super().__init__(**kwargs)
         self.layout = MDBoxLayout(orientation="vertical", padding=dp(20), spacing=dp(10))
         self.add_widget(self.layout)
 
+        # Title label for the results page
         self.title_label = MDLabel(
             text="Your Results",
             halign="center",
@@ -35,6 +80,7 @@ class ResultsWindow(MDScreen):
         )
         self.layout.add_widget(self.title_label)
 
+        # Advice label to show health-related advice
         self.advice_label = MDLabel(
             text="",
             halign="center",
@@ -43,9 +89,10 @@ class ResultsWindow(MDScreen):
         )
         self.layout.add_widget(self.advice_label)
 
+        # Placeholder for the graph widget
         self.graph_widget = None
 
-        # Return button
+        # Return button to go back to the main menu
         self.return_button = MDRectangleFlatButton(
             text="Return to Main Menu",
             size_hint=(None, None),
@@ -55,7 +102,24 @@ class ResultsWindow(MDScreen):
         self.return_button.bind(on_press=self.return_to_main)
         self.layout.add_widget(self.return_button)
 
+        # Button to save the results (advice + graph) to a PDF
+        self.save_pdf_button = MDRectangleFlatButton(
+            text="Save as PDF",
+            size_hint=(None, None),
+            size=(200, 50),
+            pos_hint={"center_x": 0.5},
+        )
+        self.save_pdf_button.bind(on_press=self.save_to_pdf)  # Fix: Correct binding
+        self.layout.add_widget(self.save_pdf_button)
+
     def display_results(self, advice, graph_path):
+        """
+        Displays the advice text and the generated graph in the Results window.
+
+        Arguments:
+        advice (str): A string containing the medical advice for the user.
+        graph_path (str): Path to the generated graph image.
+        """
         self.advice_label.text = advice
 
         if self.graph_widget:
@@ -65,25 +129,109 @@ class ResultsWindow(MDScreen):
         self.graph_widget.image.source = graph_path
         self.layout.add_widget(self.graph_widget, index=2)
 
+        self.graph_path = graph_path  # Store for saving to PDF
+        self.current_advice = advice  # Store advice for saving
+
     def return_to_main(self, _):
+        """
+        Switches back to the main window screen.
+
+        Arguments:
+            _: Event argument (unused).
+        """
         self.manager.current = "main"
+
+    def save_to_pdf(self, _):
+        """
+        Saves the health advice and the generated graph to a PDF file named 'health_report.pdf'.
+        This will include text advice and a graph image.
+
+        Arguments:
+            _: Event argument (unused).
+        """
+        pdf_filename = "health_report.pdf"
+        c = canvas.Canvas(pdf_filename, pagesize=letter)
+        width, height = letter
+
+        # Title of the PDF
+        c.setFont("Helvetica-Bold", 16)
+        c.drawString(100, height - 50, "Health Report")
+
+        # Writing advice to the PDF
+        c.setFont("Helvetica", 12)
+        max_width = 400  # Max text width before wrapping
+        y_position = height - 100  # Starting position
+
+        # Split the advice text into lines that fit within the maximum width
+        text_lines = simpleSplit(self.current_advice, "Helvetica", 12, max_width)
+
+        for line in text_lines:
+            c.drawString(100, y_position, line)
+            y_position -= 20  # Move down for the next line
+            if y_position < 100:  # Prevent text from going off the page
+                c.showPage()
+                c.setFont("Helvetica", 12)
+                y_position = height - 50  # Reset y_position for new page
+
+        # Add Image if it exists
+        if self.graph_path:
+            try:
+                c.drawImage(self.graph_path, 100, y_position - 300, width=400, height=300)
+            except Exception as e:
+                print(f"Error adding image: {e}")
+
+        c.save()
+        print(f"PDF saved as {pdf_filename}")
 
 
 class QuestionsWindow(MDScreen):
+    """
+    Window to ask the user a series of health-related questions.
+    Based on their answers, medical advice and a graph will be generated.
+
+    Methods:
+        create_action_button(): Helper function to create action buttons.
+        set_category(): Sets the category of questions based on the selected genre (General, Heart, Family).
+        submit_answers(): Submits the user's answers and displays results with graphs.
+        return_to_main(): Returns to the main menu screen.
+        generate_graph(): Generates the graph and displays it.
+        generate_heart_graph(): Generates the heart graph and displays it.
+        generate_family_graph(): Generates the family graph and displays it.
+        generate_advice(): Generates the advice and displays it.
+    """
     def __init__(self, **kwargs):
+        """
+        Initializes the QuestionsWindow and sets up the layout and widgets.
+
+        Arguments:
+            **kwargs: Arbitrary keyword arguments passed to the parent constructor.
+        """
         super().__init__(**kwargs)
         self.layout = MDBoxLayout(orientation="vertical", padding=dp(20), spacing=dp(10))
         self.add_widget(self.layout)
 
+        # Title label to prompt the user for questions
         self.title_label = MDLabel(
             text="Answer the following questions:", halign="center", font_style="H5"
         )
         self.layout.add_widget(self.title_label)
 
+        # Buttons for submitting answers and returning to the main menu
         self.submit_button = self.create_action_button("Submit Answers", self.submit_answers)
         self.return_button = self.create_action_button("Return", self.return_to_main)
 
     def create_action_button(self, text, callback):
+        """
+        Helper function to create action buttons.
+
+        Arguments:
+            text (str): The text to display on the button.
+            callback (function): The function to call when the button is pressed.
+
+        Returns:
+            MDRectangleFlatButton: The created button widget.
+        """
+
         button = MDRectangleFlatButton(
             text=text, size_hint=(None, None), size=(200, 50), pos_hint={"center_x": 0.5}
         )
@@ -91,6 +239,13 @@ class QuestionsWindow(MDScreen):
         return button
 
     def set_category(self, category):
+        """
+        Sets the category of questions based on the selected genre (General, Heart, Family).
+
+        Arguments:
+            category (str): The category to set (General, Heart, or Family).
+        """
+
         self.layout.clear_widgets()
         self.layout.add_widget(self.title_label)
 
@@ -122,6 +277,7 @@ class QuestionsWindow(MDScreen):
         self.questions = categories.get(category, [])
         self.answer_inputs = []
 
+        # Add input fields for each question
         for question in self.questions:
             self.layout.add_widget(MDLabel(text=question, halign="left"))
             input_field = MDTextField(hint_text="Enter your answer", multiline=False)
@@ -132,9 +288,17 @@ class QuestionsWindow(MDScreen):
         self.layout.add_widget(self.return_button)
 
     def submit_answers(self, _):
+        """
+        Submits the user's answers, generates medical advice, and displays results with graphs.
+
+        Arguments:
+            _: Event argument (unused).
+
+        """
         answers = [input_field.text for input_field in self.answer_inputs]
         category = self.selected_category
 
+        # Generate medical advice based on the answers and category
         advice = self.generate_medical_advice(answers, category)
 
         graph_path = None
@@ -145,14 +309,31 @@ class QuestionsWindow(MDScreen):
         elif category == "Family":
             graph_path = self.generate_family_graph(answers)
 
+        # Display the results (advice + graph) in the ResultsWindow
         results_window = self.manager.get_screen("results")
         results_window.display_results(advice, graph_path)
         self.manager.current = "results"
 
     def return_to_main(self, _):
+        """
+        Returns to the main menu screen.
+
+        Arguments:
+            _: Event argument (unused).
+
+        """
         self.manager.current = "main"
 
     def generate_family_graph(self, answers):
+        """
+        Generates a family health-related graph showing conditions such as diabetes, hypertension, etc.
+
+        Arguments:
+        answers(list): List of answers from the user
+
+        Returns:
+             str: Path to the generated graph image
+        """
         user_data = {
             'diabetic': answers[0].strip().lower(),
             'family_diabetes': 1 if answers[1].strip().lower() == 'yes' else 0,
@@ -164,6 +345,7 @@ class QuestionsWindow(MDScreen):
         data = pd.read_csv("Diabetes_Final_Data_V2.csv")
         df = pd.DataFrame(data)
 
+        # Plotting the graph
         plt.figure(figsize=(16, 6))
         parameters = ['family_diabetes', 'hypertensive', 'family_hypertension', 'cardiovascular_disease']
 
@@ -187,12 +369,22 @@ class QuestionsWindow(MDScreen):
         return image_path
 
     def generate_heart_graph(self, answers):
+        """
+        Generates a graph displaying heart-related data.
+
+        Arguments:
+        answers(list): List of heart-related answers
+
+        Returns:
+            str: Path to the generated graph image
+        """
+
         user_data = {
             'pulse_rate': float(answers[0]),
             'systolic_bp': float(answers[1]),
             'diastolic_bp': float(answers[2]),
             'glucose': float(answers[3]),
-            'bmi': float(answers[4]),
+            'bmi': float(answers[4])
         }
 
         data = pd.read_csv("Diabetes_Final_Data_V2.csv")
@@ -203,7 +395,7 @@ class QuestionsWindow(MDScreen):
 
         for i, param in enumerate(parameters):
             plt.subplot(1, 5, i + 1)
-            sns.boxplot(x=df[param], color='lightblue', width=0.5)
+            sns.boxplot(df[param], color='lightblue', width=0.5)
             plt.scatter(0, user_data[param], color='red', label='User  Value', zorder=5)
             plt.title(param.replace('_', ' ').title())
             plt.xlabel('')
@@ -219,6 +411,17 @@ class QuestionsWindow(MDScreen):
         return image_path
 
     def generate_graph(self, answers, category):
+        """
+        Generates a BMI graph using the answers.
+
+        Arguments:
+        answers(list): List of answers
+        category(list): Category string ("General", "Heart", or "Family")
+
+        Returns:
+            str: Path to the generated graph image
+        """
+
         if category == "General":
             height = float(answers[2])
             weight = float(answers[3])
@@ -279,6 +482,16 @@ class QuestionsWindow(MDScreen):
             return "bmi_graph.png"
 
     def generate_medical_advice(self, answers, category):
+        """
+        Generates health advice based on the user's answers.
+
+        Arguments:
+        answers(list): List of answers provided by the user
+        category(list): The category of questions answered
+
+        Returns:
+            str: Path to the generated graph image
+        """
         advice = f"Based on your answers:\n"
 
         if category == "General":
@@ -349,8 +562,27 @@ class QuestionsWindow(MDScreen):
         return advice
 
 
+
 class MainWindow(MDScreen):
+    """
+    Main window for the app where users can select a category of questions (General, Heart, or Family).
+    Based on the selected category, the user will be redirected to the relevant question screen.
+
+    Methods:
+        __init__(**kwargs):
+            Initializes the MainWindow layout and buttons for selecting question categories.
+
+        show_questions(category):
+            Switches to the questions screen and sets the category for the questions.
+    """
+
     def __init__(self, **kwargs):
+        """
+        Initializes the MainWindow layout and buttons for selecting question categories.
+
+        Arguments:
+        **kwargs: Additional keyword arguments to be passed to the superclass.
+        """
         super().__init__(**kwargs)
         self.layout = MDBoxLayout(orientation="vertical", padding=20, spacing=20)
 
@@ -366,6 +598,7 @@ class MainWindow(MDScreen):
 
         button_layout = MDBoxLayout(orientation="horizontal", padding=20, spacing=20)
 
+        # General button for general health questions
         self.general_button = MDIconButton(
             icon="account",
             size_hint=(self.width / 3, 0.2),
@@ -376,6 +609,7 @@ class MainWindow(MDScreen):
             md_bg_color=(0.467, 0.698, 0.329),
         )
 
+        # Heart button for heart-related questions
         self.heart_button = MDIconButton(
             icon="heart",
             size_hint=(self.width / 3, 0.2),
@@ -386,6 +620,7 @@ class MainWindow(MDScreen):
             md_bg_color=(0.639, 0.114, 0.114),
         )
 
+        # Diabetes button for family health-related questions
         self.diabetes_button = MDIconButton(
             icon="medical-bag",
             size_hint=(self.width / 3, 0.2),
@@ -396,10 +631,12 @@ class MainWindow(MDScreen):
             md_bg_color=(0.467, 0.804, 1),
         )
 
+        # Bind buttons to show respective questions when clicked
         self.general_button.bind(on_press=lambda _: self.show_questions("General"))
         self.heart_button.bind(on_press=lambda _: self.show_questions("Heart"))
         self.diabetes_button.bind(on_press=lambda _: self.show_questions("Family"))
 
+        # Add buttons to the layout
         button_layout.add_widget(self.general_button)
         button_layout.add_widget(self.heart_button)
         button_layout.add_widget(self.diabetes_button)
@@ -408,12 +645,32 @@ class MainWindow(MDScreen):
         self.add_widget(self.layout)
 
     def show_questions(self, category):
+        """
+        Switches to the questions screen and sets the category for the questions.
+
+        Arguments:
+        category (str): The category of questions to display (e.g., 'General', 'Heart', 'Family').
+        """
+
         self.manager.current = "questions"
         self.manager.get_screen("questions").set_category(category)
 
 
 class MyApp(MDApp):
+    """
+    Main app class responsible for managing screen transitions and initializing the app.
+
+    Methods:
+        build(self):
+            Builds the screen manager.
+    """
     def build(self):
+        """
+        Builds the screen manager and adds the main, questions, and results screens.
+
+        Returns:
+        MDScreenManager: The screen manager that handles screen transitions.
+        """
         sm = MDScreenManager()
         sm.add_widget(MainWindow(name="main"))
         sm.add_widget(QuestionsWindow(name="questions"))
@@ -422,13 +679,13 @@ class MyApp(MDApp):
 
 
 if __name__ == "__main__":
+    """
+    Starts the MyApp application and runs the Kivy app. Additionally, it cleans up any
+    generated graph images after the application finishes.
+    """
     MyApp().run()
 
-    if os.path.exists("bmi_graph.png"):
-        os.remove("bmi_graph.png")
-    if os.path.exists("heart_graph.png"):
-        os.remove("heart_graph.png")
-    if os.path.exists("diabetes_graph.png"):
-        os.remove("diabetes_graph.png")
-    if os.path.exists("family_graph.png"):
-        os.remove("family_graph.png")
+    # Clean up generated graph images after execution
+    for file in ["bmi_graph.png", "heart_graph.png", "diabetes_graph.png", "family_graph.png"]:
+        if os.path.exists(file):
+            os.remove(file)
