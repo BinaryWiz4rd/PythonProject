@@ -18,6 +18,8 @@ To run this application, you need to have Python and Kivy installed. Follow thes
 ### 1. Clone the repository:
    Using gitbash:
    git clone https://github.com/BinaryWiz4rd/PythonProject.git
+   
+   And then:
    cd PythonProject
 
 ### 2. Install dependencies: Make sure you have Kivy and KivyMD installed. You can install them using pip:
