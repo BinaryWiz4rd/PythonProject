@@ -1,14 +1,13 @@
-Tu będę pisać o Kivy:
+To create this project, we used Kivy, and KivyMD:
 
-Python module, cross-platform compatible GUI development kit
+Kivy is a Python module, cross-platform compatible GUI development kit.
 
 It allows us to creates graphical that works on Windows, Mac, Linus, iOS, and Android
 (Android Studio could never). ==> It means that our application is scalable for all those platforms.
 
 https://kivy.org/doc/stable/gettingstarted/installation.html
 
-W terminalu w pycharm (ale ja mam Windowsa wiec u mnie moze byc unaczej)
-Wejdz sobie w ta dokumentacje powyzej i w installation wybierz swoje oprogramowanie i zainstaluj te rzeczy
+In windows, we perform the following installations to make it work:
 
 python -m pip install --upgrade pip wheel setuptools
 python -m pip install docutils pygments pypiwin32 kivy.deps.sdl2 kivy.deps.glew
@@ -17,4 +16,4 @@ python -m pip install kivy.deps.angle
 python -m pip install pygame
 python -m pip install kivy
 
-pip install kivymd ==> do upiekszenia displayu
+pip install kivymd ==> KivyMD is used for aesthetical properties
