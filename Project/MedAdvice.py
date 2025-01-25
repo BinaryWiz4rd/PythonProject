@@ -3,7 +3,8 @@ import pandas as pd
 from kivy.metrics import dp
 from kivy.uix.image import Image
 from kivymd.app import MDApp
-from kivymd.uix.button import MDRectangleFlatButton, MDIconButton
+from kivymd.uix.button import MDRectangleFlatButton, MDIconButton, MDFlatButton
+from kivymd.uix.dialog import MDDialog
 from kivymd.uix.label import MDLabel
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.screenmanager import MDScreenManager
@@ -296,6 +297,73 @@ class QuestionsWindow(MDScreen):
 
         """
         answers = [input_field.text for input_field in self.answer_inputs]
+
+        errors = []
+
+        for i, input_field in enumerate(self.answer_inputs):
+            answer = input_field.text.strip()
+            question = self.questions[i]
+
+            # Numeric Validation
+            if question in [
+                "What is your age?",
+                "What is your height (in meters)?",
+                "What is your weight (kg)?",
+                "What is your pulse rate?",
+                "What is your systolic blood pressure?",
+                "What is your diastolic blood pressure?",
+                "What is your glucose level?",
+                "Enter your BMI"
+            ]:
+                if not answer.replace(".", "", 1).isdigit():  # Allow decimals
+                    errors.append(f"Invalid input for '{question}'. Please enter a valid number.")
+                    continue  # Skip adding invalid answers
+
+                # Convert to float for range validation
+                answer = float(answer)
+
+                # Range validation for specific numeric inputs
+                if question == "What is your age?" and not (0 < answer < 120):
+                    errors.append(f"Age must be between 1 and 119.")
+                elif question == "What is your height (in meters)?" and not (0.5 < answer < 3):
+                    errors.append("Height must be between 0.5m and 3m.")
+                elif question == "What is your weight (kg)?" and not (10 < answer < 500):
+                    errors.append("Weight must be between 10kg and 500kg.")
+                elif question == "What is your pulse rate?" and not (30 < answer < 200):
+                    errors.append("Pulse rate must be between 30 and 200 bpm.")
+                elif question in ["What is your systolic blood pressure?", "What is your diastolic blood pressure?"]:
+                    if question == "What is your systolic blood pressure?" and not (50 < answer < 250):
+                        errors.append("Systolic blood pressure must be between 50 and 250 mmHg.")
+                    if question == "What is your diastolic blood pressure?" and not (30 < answer < 150):
+                        errors.append("Diastolic blood pressure must be between 30 and 150 mmHg.")
+                elif question == "What is your glucose level?" and not (1 < answer < 10):
+                    errors.append("Glucose level must be between 1 and 10 HbA1c %).")
+                elif question == "Enter your BMI" and not (10 < answer < 100):
+                    errors.append("BMI must be between 10 and 100.")
+
+            # Yes/No Validation
+            elif question in [
+                "Do you have diabetes?",
+                "Do you have a family history of diabetes?",
+                "Are you hypertensive?",
+                "Do you have a family history of hypertension?",
+                "Do you have a family history of cardiovascular diseases?"
+            ]:
+                if answer.lower() not in ["yes", "no"]:
+                    errors.append(f"Invalid input for '{question}'. Please enter 'Yes' or 'No'.")
+
+            # Gender Validation
+            elif question == "What is your gender?":
+                if answer.lower() not in ["male", "female", "other"]:
+                    errors.append("Invalid input for gender. Please enter 'Male', 'Female', or 'Other'.")
+
+            answers.append(answer)
+
+        # If errors exist, show an error dialog and stop submission
+        if errors:
+            self.show_error_dialog("\n".join(errors))
+            return
+
         category = self.selected_category
 
         # Generate medical advice based on the answers and category
@@ -313,6 +381,25 @@ class QuestionsWindow(MDScreen):
         results_window = self.manager.get_screen("results")
         results_window.display_results(advice, graph_path)
         self.manager.current = "results"
+
+    def show_error_dialog(self, message):
+        """
+        Displays an error dialog with the provided message.
+
+        Arguments:
+            message (str): The error message to display.
+        """
+        if not hasattr(self, "error_dialog") or not self.error_dialog:
+            self.error_dialog = MDDialog(
+                title="Input Error",
+                text=message,
+                buttons=[
+                    MDFlatButton(text="OK", on_release=lambda _: self.error_dialog.dismiss())
+                ],
+            )
+        else:
+            self.error_dialog.text = message
+        self.error_dialog.open()
 
     def return_to_main(self, _):
         """
