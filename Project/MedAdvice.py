@@ -438,11 +438,18 @@ class QuestionsWindow(MDScreen):
 
         for i, param in enumerate(parameters):
             plt.subplot(1, 4, i + 1)
-            sns.countplot(x=df[param], palette='pastel')
+            ax = sns.countplot(x=df[param], palette='pastel')
+
+            # Set tick labels: 0 -> "No", 1 -> "Yes"
+            if df[param].dtype in [int, bool] and df[param].nunique() == 2:
+                ax.set_xticklabels(["No", "Yes"])
+
+            # Highlight user-selected value
             user_bar_position = user_data[param]
             bar_height = df[param].value_counts().get(user_bar_position, 0)
             plt.gca().patches[user_bar_position].set_edgecolor('red')
             plt.gca().patches[user_bar_position].set_linewidth(3)
+
             plt.title(param.replace('_', ' ').title())
             plt.xlabel('')
             plt.ylabel('Count')
